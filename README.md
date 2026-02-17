@@ -33,7 +33,7 @@ Once you are within the VM, you need following packages:
 
 NOTE: you do not need to install any of this if you use the Vagrant file for ComNetSemu because the provision scripts takes care of the packages cited above.
 
-## Project execution (Follow carefully, order matter)
+## Project execution (Follow carefully, order matters)
 Before executing any shell script, open 4 terminal windows (ctrl+shit+t).
 
 ### 1. Launch the Physical Network
