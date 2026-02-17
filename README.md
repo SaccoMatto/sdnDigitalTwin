@@ -20,7 +20,7 @@ The project consists of three main components:
 
 ## Requirements (IMPORTANT)
 
-It is **highly recommended** to run this project in a VM because of the priviledge required by ComNetSemu and Docker container. [ComNetsEmu](https://git.comnets.net/public-repo/comnetsemu) is a testbed and network emulator which extends Mininet to support better emulation of versatile Computing In The Network (COIN) applications. ComNetSemu provides a Vagrant file which spins up the VM, but also an installer script in the */util* folder (run the latter in a VM with image [Ubuntu 20.04 LTS](https://www.releases.ubuntu.com/focal/) is supported ). Between the two, I personally found easier the **second approach**.
+It is **highly recommended** to run this project in a VM because of the priviledge required by ComNetSemu and Docker container. [ComNetsEmu](https://git.comnets.net/public-repo/comnetsemu) is a testbed and network emulator which extends Mininet to support better emulation of versatile Computing In The Network (COIN) applications. ComNetSemu provides a Vagrant file which spins up the VM, but also an installer script in the */util* folder (run the latter in a VM with image [Ubuntu 20.04 LTS](https://www.releases.ubuntu.com/focal/) which is the only supported by ComNetSemu). Between the two, I personally found easier the **second approach**.
 
 Once you are within the VM, you need following packages: 
 - Git (sudo apt install git)
