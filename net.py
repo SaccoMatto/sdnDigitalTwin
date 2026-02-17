@@ -6,8 +6,7 @@ from mininet.log import setLogLevel, info
 from mininet.link import TCLink
 from mininet.clean import cleanup
 
-class Topology(Topo):
-    
+class Topology(Topo): # Mininet topology (can be shaped as you want)
     def build(self):
         # Add switches
         s1 = self.addSwitch('s1')
@@ -31,8 +30,8 @@ class Topology(Topo):
 def run(): # Start the network with remote Ryu controller
     setLogLevel('info')
     
-    cleanup()
-
+    cleanup() 
+    
     topo = Topology()
     
     # Connect to remote Ryu controller on port 6633

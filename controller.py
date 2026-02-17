@@ -45,11 +45,11 @@ class NetworkController(app_manager.RyuApp):
         
         if ev.state == MAIN_DISPATCHER: # Negotiation between RYU and OF Switch must be completed
             if datapath.id not in self.datapaths:
-                self.logger.info(f"[] Switch DPID {datapath.id} CONNECTED")
+                self.logger.info(f"Switch DPID {datapath.id} CONNECTED")
                 self.datapaths[datapath.id] = datapath
         elif ev.state == DEAD_DISPATCHER:
             if datapath.id in self.datapaths:
-                self.logger.warning(f"[] Switch DPID {datapath.id} DISCONNECTED")
+                self.logger.warning(f"Switch DPID {datapath.id} DISCONNECTED")
                 del self.datapaths[datapath.id]
     
     # Code source: https://osrg.github.io/ryu-book/en/html/switching_hub.html
@@ -60,7 +60,7 @@ class NetworkController(app_manager.RyuApp):
             ofproto = datapath.ofproto
             parser = datapath.ofproto_parser
             
-            self.logger.info(f"[] Configuring switch DPID {datapath.id}")
+            self.logger.info(f"Configuring switch DPID {datapath.id}")
             
             # Install table-miss flow entry
             match = parser.OFPMatch()
@@ -70,12 +70,12 @@ class NetworkController(app_manager.RyuApp):
             )]
             self.add_flow(datapath, 0, match, actions)
             
-            self.logger.info(f"[] Switch DPID {datapath.id} configured successfully")
+            self.logger.info(f"Switch DPID {datapath.id} configured successfully")
             
             # Trigger topology update
             self.update_topology()
         except Exception as e:
-            self.logger.error(f"[] Error in switch_features_handler: {e}")
+            self.logger.error(f"Error in switch_features_handler: {e}")
             self.logger.exception(e)
     
     def add_flow(self, datapath, priority, match, actions, buffer_id=None): # Add a flow entry to the switch
@@ -100,10 +100,10 @@ class NetworkController(app_manager.RyuApp):
             
             datapath.send_msg(mod)
         except Exception as e:
-            self.logger.error(f"[] Error adding flow: {e}")
+            self.logger.error(f"Error adding flow: {e}")
     
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
-    def packet_in_handler(self, ev): # Handle packet-in messages
+    def packet_in_handler(self, ev): # Handle packet-in messages (in means into the ryu controller)
         try:
             msg = ev.msg
             datapath = msg.datapath
@@ -153,52 +153,52 @@ class NetworkController(app_manager.RyuApp):
             )
             datapath.send_msg(out)
         except Exception as e:
-            self.logger.error(f"[] Error in packet_in_handler: {e}")
+            self.logger.error(f"Error in packet_in_handler: {e}")
     
     @set_ev_cls(event.EventSwitchEnter)
     def switch_enter_handler(self, ev): # Handle switch addition
         try:
             switch = ev.switch
-            self.logger.info(f"[] Topology: Switch {switch.dp.id} ENTERED")
+            self.logger.info(f"Topology: Switch {switch.dp.id} ENTERED")
             self.update_topology()
         except Exception as e:
-            self.logger.error(f"[] Error in switch_enter_handler: {e}")
+            self.logger.error(f"Error in switch_enter_handler: {e}")
     
     @set_ev_cls(event.EventSwitchLeave)
     def switch_leave_handler(self, ev): # Handle switch removal
         try:
             switch = ev.switch
-            self.logger.warning(f"[] Topology: Switch {switch.dp.id} LEFT")
+            self.logger.warning(f"Topology: Switch {switch.dp.id} LEFT")
             self.update_topology()
         except Exception as e:
-            self.logger.error(f"[] Error in switch_leave_handler: {e}")
+            self.logger.error(f"Error in switch_leave_handler: {e}")
     
     @set_ev_cls(event.EventLinkAdd)
     def link_add_handler(self, ev): # Handle link addition
         try:
             link = ev.link
-            self.logger.info(f"[] Topology: Link ADDED s{link.src.dpid}:{link.src.port_no} -> s{link.dst.dpid}:{link.dst.port_no}")
+            self.logger.info(f"Topology: Link ADDED s{link.src.dpid}:{link.src.port_no} -> s{link.dst.dpid}:{link.dst.port_no}")
             self.update_topology()
         except Exception as e:
-            self.logger.error(f"[] Error in link_add_handler: {e}")
+            self.logger.error(f"Error in link_add_handler: {e}")
     
     @set_ev_cls(event.EventLinkDelete)
     def link_delete_handler(self, ev): # Handle link deletion
         try:
             link = ev.link
-            self.logger.warning(f"[] Topology: Link DELETED s{link.src.dpid}:{link.src.port_no} -> s{link.dst.dpid}:{link.dst.port_no}")
+            self.logger.warning(f"Topology: Link DELETED s{link.src.dpid}:{link.src.port_no} -> s{link.dst.dpid}:{link.dst.port_no}")
             self.update_topology()
         except Exception as e:
-            self.logger.error(f"[] Error in link_delete_handler: {e}")
+            self.logger.error(f"Error in link_delete_handler: {e}")
     
     @set_ev_cls(event.EventHostAdd)
     def host_add_handler(self, ev): # Handle host addition
         try:
             host = ev.host
-            self.logger.info(f"[] Topology: Host ADDED {host.mac} at s{host.port.dpid}:{host.port.port_no}")
+            self.logger.info(f"Topology: Host ADDED {host.mac} at s{host.port.dpid}:{host.port.port_no}")
             self.update_topology()
         except Exception as e:
-            self.logger.error(f"[] Error in host_add_handler: {e}")
+            self.logger.error(f"Error in host_add_handler: {e}")
     
     def update_topology(self): # Update topology information
         try:
@@ -243,14 +243,12 @@ class NetworkController(app_manager.RyuApp):
                 'version': old_version + 1
             }
             
-            self.logger.info(f"[] Topology updated to version {self.topology['version']} - Switches: {len(switches)}, Links: {len(links)}, Hosts: {len(hosts)}")
+            self.logger.info(f"Topology updated to version {self.topology['version']} - Switches: {len(switches)}, Links: {len(links)}, Hosts: {len(hosts)}")
         except Exception as e:
-            self.logger.error(f"[] Error updating topology: {e}")
+            self.logger.error(f"Error updating topology: {e}")
             self.logger.exception(e)
 
-class NetworkAPI(ControllerBase):
-    """REST API for topology exposure"""
-    
+class NetworkAPI(ControllerBase): # REST API for topology exposure
     def __init__(self, req, link, data, **config):
         super(NetworkAPI, self).__init__(req, link, data, **config)
         self.controller = data[api_instance_name]
@@ -290,8 +288,7 @@ class NetworkAPI(ControllerBase):
     @route('version', '/api/version', methods=['GET'])
     def get_version(self, req, **kwargs):
         version_info = {
-            'version': self.controller.topology['version'],
-            'timestamp': self.controller.topology['timestamp']
+            'version': self.controller.topology['version']
         }
         body = json.dumps(version_info, indent=2)
         return Response(

@@ -132,8 +132,7 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
                 self.addSwitch(switch_name, dpid=dpid_hex)
                 info(f"    Added switch {switch_name} (dpid: {dpid_hex})\n")
     
-    def _analyze_switch_links(self):
-        """Analyze which ports are used for switch-to-switch links"""
+    def _analyze_switch_links(self): # Analyze which ports are used for switch-to-switch links
         links = self.topology_data.get('links', [])
         
         for link in links:
@@ -170,12 +169,11 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
                     bw=100,
                     delay='2ms'
                 )
-                info(f"    Linked {src_switch} <-> {dst_switch}\n")
+                info(f"Linked {src_switch} <-> {dst_switch}\n")
                 
                 added_links.add(link_id)
     
-    def _create_hosts(self):
-        """Create hosts from topology data with port conflict detection"""
+    def _create_hosts(self): # Create hosts from topology data with port conflict detection
         hosts = self.topology_data.get('hosts', {})
         host_counter = 1
         hosts_added = 0
@@ -186,7 +184,7 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
             
             # Skip if port is used for switch-to-switch links
             if dpid in self.switch_link_ports and port in self.switch_link_ports[dpid]:
-                info(f"    Skipping MAC {mac} (s{dpid}:{port} is a switch link port)\n")
+                info(f"Skipping MAC {mac} (s{dpid}:{port} is a switch link port)\n")
                 continue
             
             host_name = f"twin_h{host_counter}"
@@ -206,7 +204,7 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
                 ip_with_mask = f"10.0.0.{host_counter}/24"
             
             self.addHost(host_name, ip=ip_with_mask, mac=mac_addr)
-            info(f"    Added host {host_name} (IP: {ip_with_mask}, MAC: {mac_addr})\n")
+            info(f"Added host {host_name} (IP: {ip_with_mask}, MAC: {mac_addr})\n")
             
             # Link host to switch
             if dpid in self.switch_map:
@@ -217,7 +215,7 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
                     bw=10,
                     delay='5ms'
                 )
-                info(f"    Linked {host_name} to {switch_name}\n")
+                info(f"Linked {host_name} to {switch_name}\n")
             
             host_counter += 1
             hosts_added += 1
@@ -231,11 +229,11 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
                 mac = f"00:00:00:00:00:{host_counter:02x}"
                 
                 self.addHost(host_name, ip=ip, mac=mac)
-                info(f"    Added host {host_name} (IP: {ip}, MAC: {mac})\n")
+                info(f"Added host {host_name} (IP: {ip}, MAC: {mac})\n")
                 
                 switch_name = self.switch_map[dpid]
                 self.addLink(host_name, switch_name, bw=10, delay='5ms')
-                info(f"    Linked {host_name} to {switch_name}\n")
+                info(f"Linked {host_name} to {switch_name}\n")
                 
                 host_counter += 1
                 hosts_added += 1
@@ -310,8 +308,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         
         return self.net
     
-    def _build_link_map(self):
-        """Build a map of links for quick access"""
+    def _build_link_map(self): # Build a map of links for quick access
         for link in self.net.links:
             node1 = link.intf1.node
             node2 = link.intf2.node
@@ -407,7 +404,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
                 
                 # Check if topology changed
                 if new_version > last_version:
-                    output(f" TOPOLOGY CHANGE DETECTED! (v{last_version} -> v{new_version})\n")
+                    output(f"!!!TOPOLOGY CHANGE DETECTED!!! (v{last_version} -> v{new_version})\n")
                     self._handle_topology_change(self.topology_data, new_topology)
                     
                     output("mininet> ")  # Re-print prompt
@@ -417,9 +414,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             except Exception as e:
                 error(f"*** Sync error: {e}\n")
     
-    def _handle_topology_change(self, old_topology, new_topology):
-        """Handle changes in topology - APPLY ALL CHANGES!"""
-        
+    def _handle_topology_change(self, old_topology, new_topology): # Handle changes in topology 
         # 1. Handle LINK changes
         old_links = {self._link_key(l) for l in old_topology.get('links', [])}
         new_links = {self._link_key(l) for l in new_topology.get('links', [])}
@@ -487,8 +482,8 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         
         # Summary
         if added_links or removed_links or added_hosts:
-            output(f"\n Twin network updated to match real network!\n")
-            output(f"   Test with: pingall or net\n")
+            output(f"\nTwin network updated to match real network!\n")
+            output(f"Test with: pingall or net\n")
     
     def _bring_link_down(self, dpid1, dpid2): # Bring down a link between two switches
         link_key = tuple(sorted([dpid1, dpid2]))
@@ -500,9 +495,9 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             link.intf1.ifconfig('down')
             link.intf2.ifconfig('down')
             
-            output(f"      Brought down link twin_s{dpid1} <-> twin_s{dpid2}\n")
+            output(f"Brought down link twin_s{dpid1} <-> twin_s{dpid2}\n")
         else:
-            output(f"      Link twin_s{dpid1} <-> twin_s{dpid2} not found in link map\n")
+            output(f"Link twin_s{dpid1} <-> twin_s{dpid2} not found in link map\n")
     
     def _bring_link_up(self, dpid1, dpid2): # Bring up a link between two switches
         link_key = tuple(sorted([dpid1, dpid2]))
@@ -514,9 +509,9 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             link.intf1.ifconfig('up')
             link.intf2.ifconfig('up')
             
-            output(f"      Brought up link twin_s{dpid1} <-> twin_s{dpid2}\n")
+            output(f"Brought up link twin_s{dpid1} <-> twin_s{dpid2}\n")
         else:
-            output(f"      Link twin_s{dpid1} <-> twin_s{dpid2} not found in link map\n")
+            output(f"Link twin_s{dpid1} <-> twin_s{dpid2} not found in link map\n")
     
     def _add_host_dynamically(self, mac, host_info): # Dynamically add a new host to the network
         try:
@@ -532,7 +527,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
                     break
             
             if not switch:
-                output(f"      Switch {switch_name} not found, cannot add host\n")
+                output(f"Switch {switch_name} not found, cannot add host\n")
                 return
             
             # Create host name
@@ -562,11 +557,11 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             # Store reference
             self.created_hosts[mac] = host
             
-            output(f"      Added host {host_name} (IP: {ip_with_mask}, MAC: {mac})\n")
-            output(f"      Linked {host_name} to {switch_name}\n")
+            output(f"Added host {host_name} (IP: {ip_with_mask}, MAC: {mac})\n")
+            output(f"Linked {host_name} to {switch_name}\n")
             
         except Exception as e:
-            output(f"    Failed to add host {mac}: {e}\n")
+            output(f"Failed to add host {mac}: {e}\n")
     
     def _link_key(self, link):
         """Create a hashable key for a link"""
@@ -621,8 +616,7 @@ def validate_topology(topology):
     return True
 
 
-def check_controller(ip, port):
-    """Check if controller is reachable"""
+def check_controller(ip, port): # Check if controller is reachable
     import socket
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

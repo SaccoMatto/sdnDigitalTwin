@@ -18,11 +18,11 @@ The project consists of three main components:
 - **`net.py`**: Mininet network topology definition
 - **`twin.py`**: Digital twin implementation that fetches topology from the physical network controller and replicates it in a separate Mininet instance
 
-## Requirements
+## Requirements (IMPORTANT)
 
-It is **highly recommended** to run this project in a VM because of the priviledge required by ComNetSemu and Docker container. [ComNetsEmu](https://git.comnets.net/public-repo/comnetsemu) is a testbed and network emulator which extends Mininet to support better emulation of versatile Computing In The Network (COIN) applications. ComNetSemu provides a Vagrant file which spins up the VM, but also an installer script (run the latter in a VM with image [Ubuntu 20.04 LTS](https://www.releases.ubuntu.com/focal/) is supported ). Between the two, I personally found easier the **second approach**.
+It is **highly recommended** to run this project in a VM because of the priviledge required by ComNetSemu and Docker container. [ComNetsEmu](https://git.comnets.net/public-repo/comnetsemu) is a testbed and network emulator which extends Mininet to support better emulation of versatile Computing In The Network (COIN) applications. ComNetSemu provides a Vagrant file which spins up the VM, but also an installer script in the */util* folder (run the latter in a VM with image [Ubuntu 20.04 LTS](https://www.releases.ubuntu.com/focal/) is supported ). Between the two, I personally found easier the **second approach**.
 
-Once you are within the VM, you need followin packages: 
+Once you are within the VM, you need following packages: 
 - Git (sudo apt install git)
 - Python 3.8.10 (sudo apt install python3.8.10) [should be preinstalled with Ubuntu]
 - Pip (sudo apt install python3-pip)
@@ -33,29 +33,31 @@ Once you are within the VM, you need followin packages:
 
 NOTE: you do not need to install any of this if you use the Vagrant file for ComNetSemu because the provision scripts takes care of the packages cited above.
 
-## Getting Started
+## Project execution (Follow carefully, order matter)
 Before executing any shell script, open 4 terminal windows (ctrl+shit+t).
 
-### 1. Start the Physical Network Controller
+### 1. Launch the Physical Network
 
-In terminal 1, start the Ryu controller for the physical network:
-```bash
-ryu-manager --observe-links controller.py
-```
-
-The controller will:
-- Listen on port 6633 for OpenFlow switches (default port)
-- Expose REST API on port 8080 for topology queries (--wsapi-port 8080)
-
-### 2. Launch the Physical Network
-
-In terminal 2, start the Mininet physical network:
+In terminal 1, start the Mininet physical network:
 ```bash
 sudo python3 net.py
 ```
 
-Go back to terminal one and wait until Mininet CLI pops up.
-Once it is there, it means that the network specified has been created (can customize it as you want).
+This crates the network specified (can customize it as you want).
+
+### 2. Start the Physical Network Controller
+
+In terminal 2, start the Ryu controller for the physical network:
+```bash
+ryu-manager --observe-links controller.py
+```
+
+Once started, go back to terminal 1 and wait for Mininet CLI to pop up.
+When CLI is availabe, means that the switches of the topology have been configured and the network is ready to use.
+
+The controller will:
+- Listen on port 6633 for OpenFlow switches (default port)
+- Expose REST API on port 8080 for topology queries (--wsapi-port 8080)
 
 ### 3. Start the Digital Twin Controller
 
@@ -73,12 +75,24 @@ In terminal 4, create the digital twin that mirrors the physical network:
 sudo python3 twin.py --sync
 ```
 The **--sync** flag runs a backgroud process that keeps the twin in sync with the original network.
+Once again wait in terminal 4 for the Mininet CLI to show up.
 
 The digital twin will:
 - Fetch topology from the physical controller (localhost:8080)
 - Replicate the topology in a separate Mininet instance
 - Continuously synchronize with the physical network
 - Connect to its own controller on port 6634
+
+NOTE: If you look the logs of the controller, you will see that no host is present. Just run *pingall* in Mininet CLI to discover the host (look at the controller's logs for confirmation).
+
+### Contollers count explanation
+There are difference between what you expect and what it actually is.
+
+#### Link count
+If you look at the controllers logs, you will see only 4 links in the topology. For the provided topology in net.py, one can see that there are 5 links, but actually there are 10. This is because links are bi-directional. But why the logs say only 4? **--observe-links** only discovers switch-to-switch links using LLDP (Link Layer Discovery Protocol), meaning only 2 bi-directional links between switches. The remaining 6, host-to-switch and vice versa, are not discovered with LLDP. Hosts are discovered separately via *packet-in* events when they send traffic.
+
+#### Host count
+If you look the logs of the controller and host count is 0, just run *pingall* in Mininet CLI to discover the host (look at the controller's logs for confirmation).
 
 ## Testing
 
@@ -101,7 +115,7 @@ mininet> net                        # Display twin topology
 ### Test link sync
 In the Mininet CLI (terminal 2):
 ```bash
-mininet> link s1 s2 down            # Disable any link
+mininet> link s1 s2 down            # Disable any link. Wait for twin to detect the change (10s max)
 ```
 Now, in the digital twin CLI (terminal 4):
 ```bash
@@ -109,13 +123,12 @@ mininet> twin_h1 ping -c1 twin_h2   # Test link. Packet should not go through
 ```
 Back to Mininet CLI (terminal 2):
 ```bash
-mininet> link s1 s2 up              # Enable the link
+mininet> link s1 s2 up              # Enable the link. Wait for twin to detect the change (10s max)
 ```
 Finally, in the digital twin CLI (terminal 4):
 ```bash
-mininet> twin_h1 ping -c1 twin_h2   # Test link. Packet should go through
+mininet> twin_h1 ping -c1 twin_h2   # Test link. Now the packet should go through
 ```
-
 
 ### Verify Synchronization
 ```bash
@@ -134,7 +147,7 @@ Due to Mininet's architecture constraints, the digital twin has the following li
 
 ### Supported Dynamic Updates
 - **Link changes**: Links can be added/removed dynamically and synchronized in real-time
-- **Host addition**: New hosts can be added dynamically to the twin network (py interpreter in Mininet CLI)
+- **Host addition**: New hosts can be added dynamically to the twin network (py interpreter in Mininet CLI might not work properly)
 
 ### UNsupported Dynamic Updates
 - **Switch addition/removal**: Switches **cannot** be added or removed dynamically in Mininet once the network is running
