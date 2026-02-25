@@ -149,7 +149,7 @@ Both should return identical topology structures (switches, links, hosts).
 Due to Mininet's architecture constraints, the digital twin has the following limitations:
 
 ### Supported Dynamic Updates
-- **Link changes**: Links can be added/removed dynamically and synchronized in real-time
+- **Link changes**: Links can be added/removed dynamically and synchronized in real-time (only switch-to-switch)
 - **Host addition**: New hosts can be added dynamically to the twin network
 
 ### UNsupported Dynamic Updates
