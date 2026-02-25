@@ -3,13 +3,12 @@ from ryu.controller import ofp_event
 from ryu.controller.handler import CONFIG_DISPATCHER, MAIN_DISPATCHER, DEAD_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ofproto_v1_3
-from ryu.lib.packet import packet, ethernet, ether_types
+from ryu.lib.packet import packet, ethernet, ether_types, arp
 from ryu.topology import event
 from ryu.topology.api import get_switch, get_link, get_host
 from ryu.app.wsgi import ControllerBase, WSGIApplication, route
 from webob import Response
 import json
-import logging
 
 api_instance_name = 'api_app'
 
@@ -45,11 +44,11 @@ class NetworkController(app_manager.RyuApp):
         
         if ev.state == MAIN_DISPATCHER: # Negotiation between RYU and OF Switch must be completed
             if datapath.id not in self.datapaths:
-                self.logger.info(f"Switch DPID {datapath.id} CONNECTED")
+                self.logger.info(f"Switch datapath id {datapath.id} CONNECTED")
                 self.datapaths[datapath.id] = datapath
         elif ev.state == DEAD_DISPATCHER:
             if datapath.id in self.datapaths:
-                self.logger.warning(f"Switch DPID {datapath.id} DISCONNECTED")
+                self.logger.warning(f"Switch datapath id {datapath.id} DISCONNECTED")
                 del self.datapaths[datapath.id]
     
     # Code source: https://osrg.github.io/ryu-book/en/html/switching_hub.html
@@ -60,7 +59,7 @@ class NetworkController(app_manager.RyuApp):
             ofproto = datapath.ofproto
             parser = datapath.ofproto_parser
             
-            self.logger.info(f"Configuring switch DPID {datapath.id}")
+            self.logger.info(f"Configuring switch datapath id {datapath.id}")
             
             # Install table-miss flow entry
             match = parser.OFPMatch()
@@ -70,7 +69,7 @@ class NetworkController(app_manager.RyuApp):
             )]
             self.add_flow(datapath, 0, match, actions)
             
-            self.logger.info(f"Switch DPID {datapath.id} configured successfully")
+            self.logger.info(f"Switch datapath id {datapath.id} configured successfully")
             
             # Trigger topology update
             self.update_topology()
@@ -103,7 +102,7 @@ class NetworkController(app_manager.RyuApp):
             self.logger.error(f"Error adding flow: {e}")
     
     @set_ev_cls(ofp_event.EventOFPPacketIn, MAIN_DISPATCHER)
-    def packet_in_handler(self, ev): # Handle packet-in messages (in means into the ryu controller)
+    def packet_in_handler(self, ev): # Handle packet-in messages
         try:
             msg = ev.msg
             datapath = msg.datapath
@@ -133,10 +132,16 @@ class NetworkController(app_manager.RyuApp):
                 out_port = ofproto.OFPP_FLOOD
             
             actions = [parser.OFPActionOutput(out_port)]
+
+            # Always flood ARP (helps dynamic host addition)
+            arp_pkt = pkt.get_protocol(arp.arp)
+            if arp_pkt is not None:
+                out_port = ofproto.OFPP_FLOOD
+                actions = [parser.OFPActionOutput(out_port)]
             
-            # Install flow to avoid packet_in next time
+            # L2 learning-switch flow for known unicast destinations
             if out_port != ofproto.OFPP_FLOOD:
-                match = parser.OFPMatch(in_port=in_port, eth_dst=dst, eth_src=src)
+                match = parser.OFPMatch(eth_dst=dst)
                 if msg.buffer_id != ofproto.OFP_NO_BUFFER:
                     self.add_flow(datapath, 1, match, actions, msg.buffer_id)
                     return

@@ -101,14 +101,11 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
     def build(self):
         info("*** Building digital twin topology\n")
         
-        # Step 1: Create switches
         self._create_switches()
         
-        # Step 2: Analyze and create switch-to-switch links
         self._analyze_switch_links()
         self._create_switch_links()
         
-        # Step 3: Create hosts (avoiding port conflicts)
         self._create_hosts()
         
         info("*** Topology build complete\n")
@@ -422,7 +419,6 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         added_links = new_links - old_links
         removed_links = old_links - new_links
         
-        # APPLY link removals
         if removed_links:
             output(f"  Links REMOVED: {len(removed_links)}\n")
             for link_key in removed_links:
@@ -430,7 +426,6 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
                 output(f"     - s{dpid1} <-> s{dpid2}\n")
                 self._bring_link_down(dpid1, dpid2)
         
-        # APPLY link additions
         if added_links:
             output(f"  Links ADDED: {len(added_links)}\n")
             for link_key in added_links:
@@ -453,13 +448,6 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
                 output(f"     - {mac} at s{host_info.get('dpid')}\n")
                 self._add_host_dynamically(mac, host_info)
         
-        # REMOVE hosts (just notify, can't actually remove from Mininet easily)
-        if removed_hosts:
-            output(f"  Hosts REMOVED: {len(removed_hosts)} (detection only)\n")
-            for mac in removed_hosts:
-                output(f"     - {mac}\n")
-            output(f"     Note: Hosts remain in twin (Mininet limitation)\n")
-        
         # 3. Handle SWITCH changes (can't apply, just notify)
         old_switches = set(old_topology.get('switches', {}).keys())
         new_switches = set(new_topology.get('switches', {}).keys())
@@ -468,22 +456,18 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         removed_switches = old_switches - new_switches
         
         if added_switches or removed_switches:
-            output(f"\n  CRITICAL: SWITCH TOPOLOGY CHANGED!\n")
+            output(f"\nCRITICAL: SWITCH TOPOLOGY CHANGED!\n")
             if added_switches:
-                output(f"    Switches added: {added_switches}\n")
+                output(f"Switches added: {added_switches}\n")
             if removed_switches:
-                output(f"    Switches removed: {removed_switches}\n")
+                output(f"Switches removed: {removed_switches}\n")
             output(f"\n")
-            output(f"     Switches cannot be added/removed dynamically in Mininet.\n")
-            output(f"     To fully sync, you must RESTART the twin:\n")
-            output(f"     1. Exit this CLI (type 'exit')\n")
-            output(f"     2. Run: sudo python3 twin.py --sync\n")
+            output(f"Switches cannot be added/removed dynamically in Mininet.\n")
             return
         
         # Summary
         if added_links or removed_links or added_hosts:
-            output(f"\nTwin network updated to match real network!\n")
-            output(f"Test with: pingall or net\n")
+            output(f"\nTwin network updated!\n")
     
     def _bring_link_down(self, dpid1, dpid2): # Bring down a link between two switches
         link_key = tuple(sorted([dpid1, dpid2]))
@@ -513,12 +497,11 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         else:
             output(f"Link twin_s{dpid1} <-> twin_s{dpid2} not found in link map\n")
     
-    def _add_host_dynamically(self, mac, host_info): # Dynamically add a new host to the network
+    def _add_host_dynamically(self, mac, host_info):
         try:
             dpid = host_info.get('dpid')
             ipv4 = host_info.get('ipv4')
             
-            # Find the switch
             switch_name = f"twin_s{dpid}"
             switch = None
             for s in self.net.switches:
@@ -530,17 +513,14 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
                 output(f"Switch {switch_name} not found, cannot add host\n")
                 return
             
-            # Create host name
             host_name = f"twin_h{self.host_counter}"
             self.host_counter += 1
             
-            # Determine IP
             if ipv4 and ipv4 != 'None':
                 ip_with_mask = ipv4 if '/' in ipv4 else f"{ipv4}/24"
             else:
                 ip_with_mask = f"10.0.0.{self.host_counter}/24"
             
-            # Add host to network
             host = self.net.addHost(
                 host_name,
                 cls=Host,
@@ -548,13 +528,30 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
                 mac=mac
             )
             
-            # Create link to switch
             link = self.net.addLink(host, switch, bw=10, delay='5ms')
             
             # Configure the host
             host.configDefault()
             
-            # Store reference
+            # Attach the switch-side interface to OVS
+            switch.attach(link.intf2.name)
+            
+            # Must, explicitly, bring both interfaces up
+            link.intf1.ifconfig('up')
+            link.intf2.ifconfig('up')
+            
+            # Update static ARP entries for all existing hosts
+            ip_clean = ip_with_mask.split('/')[0]
+            for existing_host in self.net.hosts:
+                if existing_host.name != host_name:
+                    # Tell existing hosts about the new host
+                    existing_host.setARP(ip_clean, mac)
+                    # Tell the new host about existing hosts
+                    existing_ip = existing_host.IP()
+                    existing_mac = existing_host.MAC()
+                    if existing_ip and existing_mac:
+                        host.setARP(existing_ip, existing_mac)
+            
             self.created_hosts[mac] = host
             
             output(f"Added host {host_name} (IP: {ip_with_mask}, MAC: {mac})\n")
@@ -563,15 +560,13 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         except Exception as e:
             output(f"Failed to add host {mac}: {e}\n")
     
-    def _link_key(self, link):
-        """Create a hashable key for a link"""
+    def _link_key(self, link): # Create a hashable key for a link
         return tuple(sorted([
             (link.get('src_dpid'), link.get('src_port')),
             (link.get('dst_dpid'), link.get('dst_port'))
         ]))
     
-    def stop_sync(self):
-        """Stop background sync"""
+    def stop_sync(self): # Stop background sync
         self.running = False
         if self.sync_thread:
             self.sync_thread.join(timeout=2)
@@ -679,7 +674,6 @@ def main():
         # Run connectivity test
         twin.test()
         
-        # Start CLI
         twin.start_cli()
     
     except KeyboardInterrupt:
