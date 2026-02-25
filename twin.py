@@ -4,10 +4,10 @@ import json
 import argparse
 from mininet.topo import Topo
 from mininet.net import Mininet
-from mininet.node import RemoteController, OVSSwitch, Host
+from mininet.node import RemoteController, Host
 from mininet.cli import CLI
 from mininet.log import setLogLevel, info, error, output
-from mininet.link import TCLink, Link
+from mininet.link import TCLink
 from time import sleep
 import threading
 import sys
@@ -20,7 +20,6 @@ CONTROLLER_PORT = 6634
 SYNC_INTERVAL = 10
 MAX_RETRIES = 4
 RETRY_DELAY = 7
-
 
 def _fetch_json(endpoint, base_url=RYU_URL, timeout=10): # Helper method to fetch JSON from endpoint
     try:
@@ -40,7 +39,7 @@ class TopologyFetcher: # Handles robust topology fetching with retries and valid
     
     def fetch_topology(self, max_retries=MAX_RETRIES, retry_delay=RETRY_DELAY, silent=False):  # Fetch topology with retry logic and validation
         if not silent:
-            info(f"*** Fetching topology from {self.api_url}\n")
+            info(f"Fetching topology from {self.api_url}\n")
         
         for attempt in range(max_retries):
             try:
@@ -48,7 +47,7 @@ class TopologyFetcher: # Handles robust topology fetching with retries and valid
                 
                 if not topology:
                     if not silent:
-                        error(f'*** Failed to fetch topology (attempt {attempt + 1}/{max_retries})\n')
+                        error(f'Failed to fetch topology (attempt {attempt + 1}/{max_retries})\n')
                     if attempt < max_retries - 1:
                         sleep(retry_delay)
                     continue
@@ -56,37 +55,35 @@ class TopologyFetcher: # Handles robust topology fetching with retries and valid
                 # Validate topology has switches
                 if not topology.get('switches', {}):
                     if not silent:
-                        error(f'*** No switches in topology yet (attempt {attempt + 1}/{max_retries})\n')
+                        error(f'No switches in topology yet (attempt {attempt + 1}/{max_retries})\n')
                     if attempt < max_retries - 1:
                         sleep(retry_delay)
                     continue
                 
-                # Check for links
-                if not topology.get('links', []):
+                if not topology.get('links', []): # Check for links
                     if not silent:
-                        error(f'*** WARNING: No links discovered yet\n')
+                        error(f'WARNING: No links discovered yet\n')
                     if attempt < max_retries - 1:
                         sleep(retry_delay)
                     continue
                 
-                # Success!
-                if not silent:
+                if not silent: # Success!
                     num_switches = len(topology.get('switches', {}))
                     num_links = len(topology.get('links', []))
                     num_hosts = len(topology.get('hosts', {}))
-                    info(f'*** Topology fetched successfully (version {topology.get("version", 0)})\n')
-                    info(f'*** Switches: {num_switches}, Links: {num_links}, Hosts: {num_hosts}\n')
+                    info(f'Topology fetched successfully (version {topology.get("version", 0)})\n')
+                    info(f'Switches: {num_switches}, Links: {num_links}, Hosts: {num_hosts}\n')
                 
                 return topology
                 
             except Exception as e:
                 if not silent:
-                    error(f'*** Connection attempt {attempt + 1}/{max_retries} failed: {e}\n')
+                    error(f'Connection attempt {attempt + 1}/{max_retries} failed: {e}\n')
                 if attempt < max_retries - 1:
                     sleep(retry_delay)
         
         if not silent:
-            error('*** Failed to fetch topology after maximum retries\n')
+            error('Failed to fetch topology after maximum retries\n')
         return None
 
 
@@ -99,7 +96,7 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
         Topo.__init__(self)
     
     def build(self):
-        info("*** Building digital twin topology\n")
+        info("Building digital twin topology\n")
         
         self._create_switches()
         
@@ -108,7 +105,7 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
         
         self._create_hosts()
         
-        info("*** Topology build complete\n")
+        info("Topology build complete\n")
     
     def _create_switches(self):
         switches = self.topology_data.get('switches', {})
@@ -150,8 +147,7 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
             src_dpid = link.get('src_dpid')
             dst_dpid = link.get('dst_dpid')
             
-            # Create unique link identifier (bidirectional)
-            link_id = tuple(sorted([src_dpid, dst_dpid]))
+            link_id = tuple(sorted([src_dpid, dst_dpid])) # Create unique link identifier (bidirectional)
             
             if link_id in added_links:
                 continue
@@ -219,7 +215,7 @@ class DigitalTwinTopo(Topo): # Mininet topology with port conflict detection
         
         # Fallback: create default hosts if none were valid
         if hosts_added == 0:
-            info("*** No valid hosts found, creating default configuration\n")
+            info("No valid hosts found, creating default configuration\n")
             for dpid in sorted(self.switch_map.keys()):
                 host_name = f"twin_h{host_counter}"
                 ip = f"10.0.0.{host_counter}/24"
@@ -252,12 +248,10 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         self.created_hosts = {}  # Track dynamically created hosts: MAC -> Host object
     
     def create(self): # Create and start the digital twin network
-        info("*** Creating digital twin network\n")
+        info("Creating digital twin network\n")
         
-        # Build topology
-        self.topo = DigitalTwinTopo(self.topology_data)
-        
-        # Create Mininet network
+        self.topo = DigitalTwinTopo(self.topology_data) # Build topology
+
         self.net = Mininet(
             topo=self.topo,
             link=TCLink,
@@ -266,8 +260,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             build=False
         )
         
-        # Add controller
-        info(f"*** Connecting to RYU controller at {CONTROLLER_IP}:{CONTROLLER_PORT}\n")
+        info(f"Connecting to RYU controller at {CONTROLLER_IP}:{CONTROLLER_PORT}\n")
         controller = RemoteController(
             'twin_c0',
             ip=CONTROLLER_IP,
@@ -275,28 +268,26 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         )
         self.net.addController(controller)
         
-        # Build and start
         self.net.build()
-        info("*** Starting digital twin network\n")
+        info("Starting digital twin network\n")
         self.net.start()
         
-        # Start controller
-        info("*** Starting controller\n")
+        info("Starting controller\n")
         self.net.controllers[0].start()
         
-        # Build link map for quick lookup
-        self._build_link_map()
+        
+        self._build_link_map() # Build link map for quick lookup
         
         # Wait for switches to connect with timeout
-        info("*** Waiting for switches to connect to controller (max 30 seconds)\n")
+        info("Waiting for switches to connect to controller (max 30 seconds)\n")
         try:
             connected = self._wait_for_switches(timeout=30)
             if connected:
-                info("*** All switches connected successfully\n")
+                info("All switches connected successfully\n")
             else:
-                info("*** WARNING: Not all switches connected, but continuing...\n")
+                info("WARNING: Not all switches connected, but continuing...\n")
         except Exception as e:
-            info(f"*** WARNING: Error waiting for switches: {e}\n")
+            info(f"WARNING: Error waiting for switches: {e}\n")
         
         sleep(2)
         
@@ -310,14 +301,12 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             node1 = link.intf1.node
             node2 = link.intf2.node
             
-            # Only map switch-to-switch links
-            if hasattr(node1, 'dpid') and hasattr(node2, 'dpid'):
+            if hasattr(node1, 'dpid') and hasattr(node2, 'dpid'): # Only map switch-to-switch links
                 # Extract dpid numbers
                 dpid1 = int(node1.dpid, 16)
                 dpid2 = int(node2.dpid, 16)
                 
-                # Store in both directions
-                key1 = tuple(sorted([dpid1, dpid2]))
+                key1 = tuple(sorted([dpid1, dpid2])) # Store in both directions
                 self.link_map[key1] = link
                 
                 info(f"    Mapped link: s{dpid1} <-> s{dpid2}\n")
@@ -343,15 +332,15 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         return False
     
     def _display_network_info(self):
-        info('\n*** Digital Twin Network Information:\n')
-        info(f'*** Controller: {CONTROLLER_IP}:{CONTROLLER_PORT}\n')
-        info(f'*** Original API: {RYU_URL}\n')
+        info('\nDigital Twin Network Information:\n')
+        info(f'Controller: {CONTROLLER_IP}:{CONTROLLER_PORT}\n')
+        info(f'Original API: {RYU_URL}\n')
         
-        info('\n*** Switches:\n')
+        info('\nSwitches:\n')
         for switch in self.net.switches:
             info(f'    {switch.name} (dpid: {switch.dpid})\n')
         
-        info('\n*** Hosts:\n')
+        info('\nHosts:\n')
         for host in self.net.hosts:
             try:
                 host_ip = host.IP() if host.defaultIntf() else 'No interface'
@@ -360,7 +349,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             except:
                 info(f'    {host.name}: Configuration pending\n')
         
-        info('\n*** Links:\n')
+        info('\nLinks:\n')
         for link in self.net.links:
             status = "UP" if link.intf1.isUp() and link.intf2.isUp() else "DOWN"
             info(f'    {link.intf1.node.name} <-> {link.intf2.node.name} [{status}]\n')
@@ -372,15 +361,15 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             return
             
         if self.sync_thread and self.sync_thread.is_alive():
-            info("*** Sync already running\n")
+            info("Sync already running\n")
             return
         
         self.running = True
         self.sync_thread = threading.Thread(target=self._sync_loop, daemon=True)
         self.sync_thread.start()
-        info(f"*** Started topology synchronization (interval: {SYNC_INTERVAL}s)\n")
-        info("*** Twin will replicate: Link changes, New hosts\n")
-        info("*** Sync runs in background - you can still use the CLI!\n\n")
+        info(f"Started topology synchronization (interval: {SYNC_INTERVAL}s)\n")
+        info("Twin will replicate: Link changes, New hosts\n")
+        info("Sync runs in background - you can still use the CLI!\n\n")
     
     def _sync_loop(self):
         """Background thread to continuously sync topology"""
@@ -409,7 +398,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
                     last_version = new_version
             
             except Exception as e:
-                error(f"*** Sync error: {e}\n")
+                error(f"Sync error: {e}\n")
     
     def _handle_topology_change(self, old_topology, new_topology): # Handle changes in topology 
         # 1. Handle LINK changes
@@ -420,14 +409,14 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         removed_links = old_links - new_links
         
         if removed_links:
-            output(f"  Links REMOVED: {len(removed_links)}\n")
+            output(f"Links REMOVED: {len(removed_links)}\n")
             for link_key in removed_links:
                 dpid1, dpid2 = link_key[0][0], link_key[1][0]
                 output(f"     - s{dpid1} <-> s{dpid2}\n")
                 self._bring_link_down(dpid1, dpid2)
         
         if added_links:
-            output(f"  Links ADDED: {len(added_links)}\n")
+            output(f"Links ADDED: {len(added_links)}\n")
             for link_key in added_links:
                 dpid1, dpid2 = link_key[0][0], link_key[1][0]
                 output(f"     - s{dpid1} <-> s{dpid2}\n")
@@ -465,8 +454,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
             output(f"Switches cannot be added/removed dynamically in Mininet.\n")
             return
         
-        # Summary
-        if added_links or removed_links or added_hosts:
+        if added_links or removed_links or added_hosts: # Summary
             output(f"\nTwin network updated!\n")
     
     def _bring_link_down(self, dpid1, dpid2): # Bring down a link between two switches
@@ -570,20 +558,20 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         self.running = False
         if self.sync_thread:
             self.sync_thread.join(timeout=2)
-        info("*** Stopped topology sync\n")
+        info("Stopped topology sync\n")
     
     def test(self):
-        info("*** Running connectivity tests\n")
+        info("Running connectivity tests\n")
         self.net.pingAll()
     
     def start_cli(self):
-        info("*** Type 'exit' to stop the digital twin\n\n")
+        info("Type 'exit' to stop the digital twin\n\n")
         CLI(self.net)
     
     def stop(self):
         self.stop_sync()
         if self.net:
-            info("*** Stopping digital twin network\n")
+            info("Stopping digital twin network\n")
             self.net.stop()
 
 
@@ -635,8 +623,7 @@ def main():
     
     setLogLevel('info')
     
-    # Check if twin controller is running
-    info("*** Checking if twin RYU controller is running...\n")
+    info("Checking if twin RYU controller is running...\n")
     if not check_controller(CONTROLLER_IP, CONTROLLER_PORT):
         error(f"\n WARNING: Cannot connect to RYU controller on port {CONTROLLER_PORT}\n")
         error("\nMake sure to start a second RYU controller:\n")
@@ -644,10 +631,9 @@ def main():
         error("\nContinuing anyway, but switches may not connect...\n\n")
         sleep(3)
     else:
-        info(f"*** Twin controller is reachable on port {CONTROLLER_PORT}\n\n")
+        info(f"Twin controller is reachable on port {CONTROLLER_PORT}\n\n")
     
-    # Fetch topology with retries
-    fetcher = TopologyFetcher(RYU_URL)
+    fetcher = TopologyFetcher(RYU_URL) # Fetch topology with retries
     topology = fetcher.fetch_topology()
     
     # Validate topology
@@ -677,7 +663,7 @@ def main():
         twin.start_cli()
     
     except KeyboardInterrupt:
-        info('\n*** Interrupted by user\n')
+        info('\nInterrupted by user\n')
     except Exception as e:
         error(f"\nERROR: Failed to create digital twin: {e}\n")
         import traceback

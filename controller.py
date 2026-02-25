@@ -18,8 +18,7 @@ class NetworkController(app_manager.RyuApp):
     
     def __init__(self, *args, **kwargs):
         super(NetworkController, self).__init__(*args, **kwargs)
-        
-        # Topology storage
+
         self.topology = {
             'switches': {},
             'links': [],
@@ -71,8 +70,7 @@ class NetworkController(app_manager.RyuApp):
             
             self.logger.info(f"Switch datapath id {datapath.id} configured successfully")
             
-            # Trigger topology update
-            self.update_topology()
+            self.update_topology() # Trigger topology update
         except Exception as e:
             self.logger.error(f"Error in switch_features_handler: {e}")
             self.logger.exception(e)
@@ -123,8 +121,7 @@ class NetworkController(app_manager.RyuApp):
             
             self.mac_to_port.setdefault(dpid, {})
             
-            # Learn MAC address
-            self.mac_to_port[dpid][src] = in_port
+            self.mac_to_port[dpid][src] = in_port # Learn MAC address
             
             if dst in self.mac_to_port[dpid]:
                 out_port = self.mac_to_port[dpid][dst]
@@ -216,8 +213,7 @@ class NetworkController(app_manager.RyuApp):
                     'ports': [port.port_no for port in switch.ports if port.port_no < 65535]
                 }
             
-            # Get all links
-            links_list = get_link(self, None)
+            links_list = get_link(self, None) # Get all links
             links = []
             for link in links_list:
                 links.append({
@@ -227,8 +223,7 @@ class NetworkController(app_manager.RyuApp):
                     'dst_port': link.dst.port_no
                 })
             
-            # Get all hosts
-            hosts_list = get_host(self, None)
+            hosts_list = get_host(self, None) # Get all hosts
             hosts = {}
             for host in hosts_list:
                 hosts[host.mac] = {
@@ -239,8 +234,7 @@ class NetworkController(app_manager.RyuApp):
                     'dpid': host.port.dpid
                 }
             
-            # Update topology
-            old_version = self.topology['version']
+            old_version = self.topology['version'] # Update topology
             self.topology = {
                 'switches': switches,
                 'links': links,
@@ -252,6 +246,7 @@ class NetworkController(app_manager.RyuApp):
         except Exception as e:
             self.logger.error(f"Error updating topology: {e}")
             self.logger.exception(e)
+            
 
 class NetworkAPI(ControllerBase): # REST API for topology exposure
     def __init__(self, req, link, data, **config):
