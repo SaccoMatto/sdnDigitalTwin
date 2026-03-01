@@ -13,7 +13,6 @@ import threading
 import sys
 
 RYU_URL = 'http://localhost:8080'
-TWIN_RYU_URL = 'http://localhost:8081'
 TOPOLOGY_ENDPOINT = '/api/topology'
 CONTROLLER_IP = '127.0.0.1'
 CONTROLLER_PORT = 6634
@@ -52,8 +51,7 @@ class TopologyFetcher: # Handles robust topology fetching with retries and valid
                         sleep(retry_delay)
                     continue
                 
-                # Validate topology has switches
-                if not topology.get('switches', {}):
+                if not topology.get('switches', {}): # Validate topology has switches
                     if not silent:
                         error(f'No switches in topology yet (attempt {attempt + 1}/{max_retries})\n')
                     if attempt < max_retries - 1:
@@ -67,7 +65,7 @@ class TopologyFetcher: # Handles robust topology fetching with retries and valid
                         sleep(retry_delay)
                     continue
                 
-                if not silent: # Success!
+                if not silent: # Success
                     num_switches = len(topology.get('switches', {}))
                     num_links = len(topology.get('links', []))
                     num_hosts = len(topology.get('hosts', {}))
@@ -371,8 +369,7 @@ class DigitalTwin: # Digital twin network with dynamic synchronization
         info("Twin will replicate: Link changes, New hosts\n")
         info("Sync runs in background - you can still use the CLI!\n\n")
     
-    def _sync_loop(self):
-        """Background thread to continuously sync topology"""
+    def _sync_loop(self): # Background thread to continuously sync topology
         last_version = self.topology_data.get('version', 0)
         
         while self.running:
@@ -625,7 +622,7 @@ def main():
     
     info("Checking if twin RYU controller is running...\n")
     if not check_controller(CONTROLLER_IP, CONTROLLER_PORT):
-        error(f"\n WARNING: Cannot connect to RYU controller on port {CONTROLLER_PORT}\n")
+        error(f"\n WARNING: Cannot connect to twin controller\n")
         error("\nMake sure to start a second RYU controller:\n")
         error(f"  ryu-manager --wsapi-port 8081 --ofp-tcp-listen-port {CONTROLLER_PORT} controller.py\n")
         error("\nContinuing anyway, but switches may not connect...\n\n")
