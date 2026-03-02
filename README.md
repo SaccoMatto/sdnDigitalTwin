@@ -170,3 +170,7 @@ This limitations are inherent to Mininet's design, which requires the network to
 - **Training**: Learn SDN concepts without affecting real infrastructure
 - **Analysis**: Monitor and analyze network behavior in isolation
 - **Development**: Develop and test SDN applications safely
+
+# BUGS ...
+Unfortunately there are bugs that I could not manage to solve.
+For example after switch removal, one might try to test with a pingall, in the Digital Twin, the actual NON-removal of the switch (not possible to do it dynamically). This causes a host to be added to the main network and therefore to the digital twin. I suspect this is due to cross contamination at the Linux networking level since the host is added with a random MAC (in the Mininet tolopogy i declarated autoSetMacs to true).
